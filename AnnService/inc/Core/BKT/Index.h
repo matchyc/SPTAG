@@ -101,7 +101,7 @@ namespace SPTAG
             }
 
             ~Index() {}
-
+            // inline std::ofstream& GetOfs() { return ofs; }
             inline SizeType GetNumSamples() const { return m_pSamples.R(); }
             inline SizeType GetNumDeleted() const { return (SizeType)m_deletedID.Count(); }
             inline DimensionType GetFeatureDim() const { return m_pSamples.C(); }
@@ -121,7 +121,13 @@ namespace SPTAG
                 float yy = m_iBaseSquare - m_fComputeDistance((const T*)pY, (const T*)pY, m_pSamples.C());
                 return 1.0f - xy / (sqrt(xx) * sqrt(yy));
             }
-            inline float ComputeDistance(const void* pX, const void* pY) const { return m_fComputeDistance((const T*)pX, (const T*)pY, m_pSamples.C()); }
+            inline float ComputeDistance(const void* pX, const void* pY) const { 
+                // std::cout << "Reaching BKT distance calculation ..." << std::endl;
+
+                auto t = m_fComputeDistance((const T*)pX, (const T*)pY, m_pSamples.C()); 
+
+                return t;
+                }
             inline const void* GetSample(const SizeType idx) const { return (void*)m_pSamples[idx]; }
             inline bool ContainSample(const SizeType idx) const { return idx >= 0 && idx < m_deletedID.R() && !m_deletedID.Contains(idx); }
             inline bool NeedRefine() const { return m_deletedID.Count() > (size_t)(GetNumSamples() * m_fDeletePercentageForRefine); }
@@ -167,8 +173,21 @@ namespace SPTAG
             ErrorCode RefineIndex(const std::vector<std::shared_ptr<Helper::DiskIO>>& p_indexStreams, IAbortOperation* p_abort);
             ErrorCode RefineIndex(std::shared_ptr<VectorIndex>& p_newIndex);
 
+            // void PrepareOfstream() {
+            //      LOG(Helper::LogLevel::LL_Info, "In BKT file name %s \n", save_file_name.c_str());
+            //     if (GetOfs().is_open()) {
+            //         GetOfs().close();
+            //     }
+            //     GetOfs().open(GetSaveFileName().c_str(), std::ofstream::ate | std::ofstream::out | std::ios_base::binary);
+            //     if(!GetOfs().is_open()) {
+            //         LOG(Helper::LogLevel::LL_Error, "Open file %s error.", save_file_name.c_str());
+            //         exit(-1);
+            //     }
+            // }
         private:
             void SearchIndex(COMMON::QueryResultSet<T> &p_query, COMMON::WorkSpace &p_space, bool p_searchDeleted, bool p_searchDuplicated) const;
+        public:
+            std::ofstream ofs;
         };
     } // namespace BKT
 } // namespace SPTAG

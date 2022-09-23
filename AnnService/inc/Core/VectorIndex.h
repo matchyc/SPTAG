@@ -24,7 +24,22 @@ public:
 class VectorIndex
 {
 public:
-    VectorIndex();
+    std::string current_test_config;
+    std::string save_file_name;
+    std::string stat_res_path;
+    std::string current_query_suffix;
+
+    void SetQuerySuffix(std::string s) {
+        current_query_suffix = s;
+    }
+    VectorIndex() {
+        // ofs.open("/home/cm/projects/ann/exp_result/spann_cmp/query_0_50.bin", std::ofstream::out | std::ios_base::binary | std::ios::app);
+        // int32_t dummy_num = 10, dummy_dim = 10;
+        // GetOfs().write((char*)&dummy_num, sizeof(int32_t));
+        // GetOfs().write((char*)&dummy_dim, sizeof(int32_t));
+        // std::remove("/home/cm/projects/ann/exp_result/spann_visited_vec.bin");
+        // ofs.open("/home/cm/projects/ann/exp_result/spann_visited_vec.bin", std::ofstream::out | std::ios_base::binary | std::ios::app);
+    }
 
     virtual ~VectorIndex();
 
@@ -146,11 +161,40 @@ public:
     inline bool HasMetaMapping() const { return nullptr != m_pMetaToVec; }
 
     inline SizeType GetMetaMapping(std::string& meta) const;
-
     void UpdateMetaMapping(const std::string& meta, SizeType i);
 
     void BuildMetaMapping(bool p_checkDeleted = true);
 
+    std::ofstream& GetOfs() { return ofs;};
+    std::string GetSaveFileName() { return VectorIndex::save_file_name;};
+    std::string GetStatResPath() { return stat_res_path; }
+    void SetSaveFileName(std::string s) { 
+        save_file_name = s; 
+    };
+    void SetStatResPath(std::string s) {
+        stat_res_path = s;
+    };
+    
+    void PrepareOfstream() {
+#ifdef OUTPUT_PT
+        // save_file_name = "/home/cm/projects/ann/exp_result/" + save_file_name + ".bin";
+        LOG(Helper::LogLevel::LL_Info, "File name %s \n", save_file_name.c_str());
+        // if (GetOfs().is_open()) {
+        //     GetOfs().close();
+        // }
+        GetOfs().open(GetSaveFileName().c_str(), std::ofstream::trunc | std::ofstream::out | std::ios_base::binary);
+        if(!GetOfs().is_open()) {
+            LOG(Helper::LogLevel::LL_Error, "Open file %s error.", save_file_name.c_str());
+            exit(-1);
+        }
+
+        int32_t dummy_num = 10, dummy_dim = 10;
+        GetOfs().write((char*)&dummy_num, sizeof(int32_t));
+        GetOfs().write((char*)&dummy_dim, sizeof(int32_t));
+#endif // DEBUG
+        // GetOfs().close();
+        // GetOfs().write(GetSaveFileName().c_str(), 10);
+    };
 private:
     ErrorCode LoadIndexConfig(Helper::IniReader& p_reader);
 
@@ -169,6 +213,7 @@ public:
     int m_iDataBlockSize = 1024 * 1024;
     int m_iDataCapacity = MaxSize;
     int m_iMetaRecordSize = 10;
+    std::ofstream ofs;
     std::shared_ptr<SPTAG::COMMON::IQuantizer> m_pQuantizer = nullptr;
 };
 

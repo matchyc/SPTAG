@@ -42,19 +42,19 @@ namespace SPTAG
         class Index : public VectorIndex
         {
         private:
-            std::shared_ptr<VectorIndex> m_index;
             std::shared_ptr<std::uint64_t> m_vectorTranslateMap;
             std::unordered_map<std::string, std::string> m_headParameters;
 
             std::shared_ptr<IExtraSearcher> m_extraSearcher;
             std::unique_ptr<COMMON::WorkSpacePool<ExtraWorkSpace>> m_workSpacePool;
 
-            Options m_options;
 
             std::function<float(const T*, const T*, DimensionType)> m_fComputeDistance;
             int m_iBaseSquare;
+            Options m_options;
 
         public:
+            std::shared_ptr<VectorIndex> m_index;
             Index()
             {
                 m_fComputeDistance = std::function<float(const T*, const T*, DimensionType)>(COMMON::DistanceCalcSelector<T>(m_options.m_distCalcMethod));
@@ -86,7 +86,9 @@ namespace SPTAG
                 float yy = m_iBaseSquare - m_fComputeDistance((const T*)pY, (const T*)pY, m_options.m_dim);
                 return 1.0f - xy / (sqrt(xx) * sqrt(yy));
             }
-            inline float ComputeDistance(const void* pX, const void* pY) const { return m_fComputeDistance((const T*)pX, (const T*)pY, m_options.m_dim); }
+            inline float ComputeDistance(const void* pX, const void* pY) const { 
+                std::cout << "reaching distance calculation..." << std::endl;
+                return m_fComputeDistance((const T*)pX, (const T*)pY, m_options.m_dim); }
             inline bool ContainSample(const SizeType idx) const { return idx < m_options.m_vectorSize; }
 
             std::shared_ptr<std::vector<std::uint64_t>> BufferSize() const

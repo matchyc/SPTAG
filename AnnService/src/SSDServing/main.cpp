@@ -86,6 +86,19 @@ namespace SPTAG {
 			LOG(Helper::LogLevel::LL_Info, "Set QuantizerFile = %s\n", QuantizerFilePath.c_str());
 
 			std::shared_ptr<VectorIndex> index = VectorIndex::CreateInstance(IndexAlgoType::SPANN, valueType);
+			index->current_test_config = std::string(configurationPath);
+
+			char* tok_ptr = strtok((char*)configurationPath, "/");
+			char* pre = nullptr;
+			while(tok_ptr != nullptr) {
+				pre = tok_ptr;
+				tok_ptr = strtok(NULL, "/");
+			}
+			index->SetQuerySuffix(std::string(pre));
+			index->SetStatResPath("/home/cm/projects/ann/exp_result/spann_cmp/spann_res.csv");
+			index->SetSaveFileName("/home/cm/projects/ann/exp_result/spann_cmp/" + std::string(pre) + ".bin");
+			// index->PrepareOfstream();
+			// index->GetOfs().close();
 			if (!QuantizerFilePath.empty() && index->LoadQuantizer(QuantizerFilePath) != ErrorCode::Success)
 			{
 				exit(1);
@@ -116,7 +129,6 @@ namespace SPTAG {
 
 #include "inc/Core/DefinitionList.h"
 #undef DefineVectorValueType
-
 			if (opts == nullptr) {
 				LOG(Helper::LogLevel::LL_Error, "Cannot get options.\n");
 				exit(1);
@@ -149,7 +161,7 @@ namespace SPTAG {
 				auto querySet = queryReader->GetVectorSet();
 				if (distCalcMethod == DistCalcMethod::Cosine && !index->m_pQuantizer) vectorSet->Normalize(opts->m_iSSDNumberOfThreads);
 
-				omp_set_num_threads(opts->m_iSSDNumberOfThreads);
+				omp_set_num_threads(1);
 
 #define DefineVectorValueType(Name, Type) \
 	if (opts->m_valueType == VectorValueType::Name) { \

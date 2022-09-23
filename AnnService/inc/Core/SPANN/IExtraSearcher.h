@@ -40,7 +40,7 @@ namespace SPTAG {
 
             int m_exCheck;
 
-            int m_totalListElementsCount;
+            int64_t m_totalListElementsCount;
 
             int m_diskIOCount;
 

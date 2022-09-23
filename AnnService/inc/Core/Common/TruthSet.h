@@ -265,6 +265,7 @@ namespace SPTAG
                     if (minpos < K) meanmrr += 1.0f / (minpos + 1);
 
                     if (debug) {
+                    // if (i == 0) {
                         std::string ll("recall:" + std::to_string(thisrecall[i]) + "\ngroundtruth:");
                         std::vector<NodeDistPair> truthvec;
                         for (SizeType id : truth[i]) {
@@ -275,13 +276,15 @@ namespace SPTAG
                             truthvec.emplace_back(id, truthDist);
                         }
                         std::sort(truthvec.begin(), truthvec.end());
-                        for (int j = 0; j < truthvec.size(); j++)
+                        // for (int j = 0; j < truthvec.size(); j++)
+                        for (int j = 0; j < K; j++)
                             ll += std::to_string(truthvec[j].node) + "@" + std::to_string(truthvec[j].distance) + ",";
                         LOG(Helper::LogLevel::LL_Info, "%s\n", ll.c_str());
                         ll = "ann:";
                         for (int j = 0; j < K; j++)
                             ll += std::to_string(results[i].GetResult(j)->VID) + "@" + std::to_string(results[i].GetResult(j)->Dist) + ",";
                         LOG(Helper::LogLevel::LL_Info, "%s\n", ll.c_str());
+                    // }
                     }
                 }
                 meanrecall /= NumQuerys;

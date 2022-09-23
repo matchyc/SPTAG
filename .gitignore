@@ -62,3 +62,8 @@ dkms.conf
 /packages
 /out/build/x64-Debug
 /sgKey.snk
+
+DEBUG/
+Debug/
+Release/
+.vscode/

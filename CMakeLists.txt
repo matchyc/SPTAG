@@ -93,6 +93,8 @@ endif()
 option(GPU "GPU" ON)
 option(LIBRARYONLY "LIBRARYONLY" OFF)
 
+# add_compile_definitions(OUTPUT_PT=1)
+
 add_subdirectory (ThirdParty/zstd/build/cmake)
 
 add_subdirectory (AnnService)

@@ -13,6 +13,7 @@
 #include "inc/Helper/StringConvert.h"
 #include "inc/SSDServing/Utils.h"
 
+
 namespace SPTAG {
 	namespace SSDServing {
 		namespace SSDIndex {
@@ -97,6 +98,36 @@ namespace SPTAG {
                     collects[static_cast<size_t>(collects.size() - 1)]);
             }
 
+            template<typename T, typename V>
+            double GetMeanStatistic(const std::vector<V>& p_values, std::function<T(const V&)> p_get)
+            {
+                double sum = 0;
+                double cnt = 0;
+                for (const auto& v : p_values)
+                {
+                    double tmp = static_cast<double>(p_get(v));
+                    sum += tmp;
+                    cnt += 1;
+                    // collects.push_back(tmp);
+                }
+                // std::cout << cnt << "and" << sum << std::endl;
+
+                return sum / cnt;
+            }
+
+            template<typename T, typename V>
+            T GetTotalStatistic(const std::vector<V>& p_values, std::function<T(const V&)> p_get)
+            {
+                T sum = 0;
+                for (const auto& v : p_values)
+                {
+                    T tmp = p_get(v);
+                    sum += tmp;
+                    // collects.push_back(tmp);
+                }
+
+                return sum;
+            }
 
             template <typename ValueType>
             void SearchSequential(SPANN::Index<ValueType>* p_index,
@@ -106,7 +137,7 @@ namespace SPTAG {
                 int p_maxQueryCount, int p_internalResultNum)
             {
                 int numQueries = min(static_cast<int>(p_results.size()), p_maxQueryCount);
-
+                
                 std::atomic_size_t queriesSent(0);
 
                 std::vector<std::thread> threads;
@@ -132,9 +163,18 @@ namespace SPTAG {
                             double startTime = threadws.getElapsedMs();
                             p_index->GetMemoryIndex()->SearchIndex(p_results[index]);
                             double endTime = threadws.getElapsedMs();
+                            // p_index->GetOfs().close();
+#ifdef OUTPUT_PT
+                            if (!p_index->m_index->GetOfs().is_open()) {
+                                std::cout << "In search memory index open file!" << std::endl;
+                                p_index->m_index->SetStatResPath(p_index->stat_res_path);
+                                p_index->m_index->SetSaveFileName(p_index->save_file_name);
+			                    // p_index->m_index->GetOfs().open(p_index->m_index->GetSaveFileName(), std::ofstream::out | std::ofstream::app | std::ofstream::binary);
+			                    p_index->m_index->PrepareOfstream();
+                            }
+#endif // DEBUG
                             p_index->SearchDiskIndex(p_results[index], &(p_stats[index]));
                             double exEndTime = threadws.getElapsedMs();
-
                             p_stats[index].m_exLatency = exEndTime - endTime;
                             p_stats[index].m_totalLatency = p_stats[index].m_totalSearchLatency = exEndTime - startTime;
                         }
@@ -143,6 +183,7 @@ namespace SPTAG {
                             return;
                         }
                     }
+                    // p_index->GetMemoryIndex()->GetOfs().close();
                 };
 
                 for (int i = 0; i < p_numThreads; i++) { threads.emplace_back(func); }
@@ -162,6 +203,7 @@ namespace SPTAG {
             template <typename ValueType>
             void Search(SPANN::Index<ValueType>* p_index)
             {
+
                 SPANN::Options& p_opts = *(p_index->GetOptions());
                 std::string outputFile = p_opts.m_searchResult;
                 std::string truthFile = p_opts.m_truthPath;
@@ -181,7 +223,7 @@ namespace SPTAG {
                 int K = p_opts.m_resultNum;
                 int truthK = (p_opts.m_truthResultNum <= 0) ? K : p_opts.m_truthResultNum;
 
-                if (!warmupFile.empty())
+                if (false)
                 {
                     LOG(Helper::LogLevel::LL_Info, "Start loading warmup query set...\n");
                     std::shared_ptr<Helper::ReaderOptions> queryOptions(new Helper::ReaderOptions(p_opts.m_valueType, p_opts.m_dim, p_opts.m_warmupType, p_opts.m_warmupDelimiter));
@@ -218,7 +260,7 @@ namespace SPTAG {
                 auto querySet = queryReader->GetVectorSet();
                 int numQueries = querySet->Count();
 
-                std::vector<QueryResult> results(numQueries, QueryResult(NULL, max(K, internalResultNum), false));
+                std::vector<QueryResult> results(numQueries, QueryResult(nullptr, max(K, internalResultNum), false));
                 std::vector<SPANN::SearchStats> stats(numQueries);
                 for (int i = 0; i < numQueries; ++i)
                 {
@@ -344,6 +386,72 @@ namespace SPTAG {
                     "Recall@%d: %f MRR@%d: %f\n", K, recall, K, MRR);
 
                 LOG(Helper::LogLevel::LL_Info, "\n");
+                // p_index->GetOfs().close();
+                p_index->m_index->GetOfs().flush();
+                std::ifstream ifs(p_index->GetSaveFileName().c_str(), std::ios_base::binary | std::ifstream::in);
+                ifs.seekg(0, std::ifstream::end);
+                // std::ifstream ifs("/home/cm/projects/ann/exp_result/spann_cmp/query_0_50.bin", std::ios_base::binary | std::ios_base::ate);
+                int64_t total_output_size = ifs.tellg();
+                total_output_size -= 8;
+                ifs.close();     
+                uint32_t total_vec_num = (total_output_size / (sizeof(float) * p_index->GetFeatureDim()));
+                int32_t dim = p_index->GetFeatureDim();
+#ifdef OUTPUT_PT
+                // if (!p_index->GetOfs().is_open()){
+                //     p_index->GetOfs().open(p_index->GetSaveFileName().c_str(), std::ofstream::out | std::ofstream::binary | std::ofstream::app);
+                //     if(!p_index->GetOfs().is_open()) {
+                //         LOG(Helper::LogLevel::LL_Error, "Opening file error when writing results... \n");
+                //         exit(-1);
+                //     }
+                // }
+                p_index->m_index->GetOfs().seekp(0);
+                p_index->m_index->GetOfs().write((char*)&total_vec_num, sizeof(uint32_t));
+                p_index->m_index->GetOfs().write((char*)&dim, sizeof(uint32_t));
+                // p_index->GetOfs().write((char*)temp_buffer, total_output_size);
+                // p_index->GetOfs().close();
+                // p_index->GetOfs().seekp(std::ios_base::end);
+                // std::cout << "current file size: "<< p_index->GetOfs().tellp() << std::endl;
+#endif // OUTPUT_PT
+#ifndef OUTPUT_PT
+                std::ofstream stat_ofs(p_index->GetStatResPath().c_str(), std::ios::out | std::ofstream::app);
+                double mean_latency = GetMeanStatistic<double, SPANN::SearchStats>(stats,
+                    [](const SPANN::SearchStats& ss) -> double
+                    {
+                        return ss.m_totalLatency;
+                    });
+                
+                double mean_page_count = GetMeanStatistic<int, SPANN::SearchStats>(stats,
+                    [](const SPANN::SearchStats& ss) -> int
+                    {
+                        return ss.m_diskAccessCount;
+                    });
+
+                LOG(Helper::LogLevel::LL_Info, "[Mean latency]: %lf, [Mean page access count]: %lf. \n",
+                    mean_latency, mean_page_count);
+
+                // Output stats
+
+                stat_ofs << p_index->current_query_suffix << ',' << total_vec_num << ',' << recall << ',' << mean_latency << ',' << mean_page_count << std::endl;
+                stat_ofs.close();
+
+
+#endif // !OUTPUT_PT
+                LOG(Helper::LogLevel::LL_Info, "Visited vector file %s size: %lld, expected file size %lld, num: %d, dim: %d. \n",
+                p_index->GetSaveFileName().c_str(), total_output_size, GetTotalStatistic<int64_t, SPANN::SearchStats>(stats,
+                    [](const SPANN::SearchStats& ss) -> int64_t
+                    {
+                        return ss.m_totalListElementsCount;
+                    }) * sizeof(float) * p_index->GetFeatureDim(), total_vec_num, dim);
+                if (
+                    total_output_size != GetTotalStatistic<int64_t, SPANN::SearchStats>(stats,
+                    [](const SPANN::SearchStats& ss) -> int64_t
+                    {
+                        return ss.m_totalListElementsCount;
+                    }) * sizeof(float)) 
+                {
+                    std::cout << "GG!!!" << std::endl;
+                }
+
 
                 if (p_opts.m_recall_analysis) {
                     LOG(Helper::LogLevel::LL_Info, "Start recall analysis...\n");

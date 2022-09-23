@@ -256,7 +256,10 @@ namespace SPTAG
         ErrorCode Index<T>::SearchDiskIndex(QueryResult& p_query, SearchStats* p_stats) const
         {
             if (nullptr == m_extraSearcher) return ErrorCode::EmptyIndex;
-
+            // if (!m_index->GetOfs().is_open()) { 
+			// 	LOG(Helper::LogLevel::LL_Error, "File is not opened before. 1");
+			// 	exit(-1);
+			// }
             COMMON::QueryResultSet<T>* p_queryResults = (COMMON::QueryResultSet<T>*) & p_query;
             std::shared_ptr<ExtraWorkSpace> workSpace = m_workSpacePool->Rent();
             workSpace->m_deduper.clear();
@@ -291,7 +294,6 @@ namespace SPTAG
                     res->Dist = MaxDist;
                 }
             }
-
             p_queryResults->Reverse();
             m_extraSearcher->SearchIndex(workSpace.get(), *p_queryResults, m_index, p_stats);
             m_workSpacePool->Return(workSpace);

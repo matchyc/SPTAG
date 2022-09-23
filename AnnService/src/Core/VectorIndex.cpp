@@ -90,13 +90,16 @@ namespace SPTAG {
 #endif
 }
 
-VectorIndex::VectorIndex()
-{
-}
+// VectorIndex::VectorIndex()
+// {
+// }
 
 
 VectorIndex::~VectorIndex()
 {
+    if (GetOfs().is_open()) {
+        GetOfs().close();
+    }
 }
 
 

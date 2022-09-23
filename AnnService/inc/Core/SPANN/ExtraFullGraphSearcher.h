@@ -16,12 +16,16 @@
 #include <future>
 #include <numeric>
 
+// #define OUTPUT_PT 1
+#ifdef OUTPUT_PT
+#define OUTPUT_STAT
+#endif // DEBUG
+
 namespace SPTAG
 {
     namespace SPANN
     {
         extern std::function<std::shared_ptr<Helper::DiskIO>(void)> f_createAsyncIO;
-
         struct Selection {
             std::string m_tmpfile;
             size_t m_totalsize;
@@ -199,7 +203,7 @@ namespace SPTAG
  
                 int diskRead = 0;
                 int diskIO = 0;
-                int listElements = 0;
+                int64_t listElements = 0;
 
 #if defined(ASYNC_READ) && !defined(BATCH_READ)
                 int unprocessed = 0;
@@ -230,10 +234,21 @@ namespace SPTAG
                     request.m_status = (fileid << 16) | p_exWorkSpace->m_spaceID;
                     request.m_payload = (void*)listInfo; 
                     request.m_success = false;
-
+ 
+                    // p_index->GetOfs().close();
+                    // p_index->GetOfs().open(p_index->GetSaveFileName().c_str(), std::ios::binary);
+                    // p_index->GetOfs().write("abcd", 4); 
+                    
+                    // if (p_index->GetOfs().bad()) {
+                    //         LOG(Helper::LogLevel::LL_Error,
+                    //         "Writing into cm file failed 1");
+                    //         p_index->GetOfs().close();
+                    //         exit(-1);
+                    // }
 #ifdef BATCH_READ // async batch read
-                    request.m_callback = [&p_exWorkSpace, &queryResults, &p_index, &request, this](bool success)
+                    request.m_callback = [&p_exWorkSpace, &queryResults, &p_index, &request, this, &pi](bool success)
                     {
+                        
                         char* buffer = request.m_buffer;
                         ListInfo* listInfo = (ListInfo*)(request.m_payload);
 
@@ -241,9 +256,48 @@ namespace SPTAG
                         char* p_postingListFullData = buffer + listInfo->pageOffset;
                         if (m_enableDataCompression)
                         {
-                            DecompressPosting();
+                            // DecompressPosting();
                         }
-
+#ifdef OUTPUT_PT
+                        for (int i = 0; i < listInfo->listEleCount; i++) {
+                            uint64_t offsetVectorID, offsetVector;
+                            (this->*m_parsePosting)(offsetVectorID, offsetVector, i, listInfo->listEleCount);
+                            int vectorID = *(reinterpret_cast<int*>(p_postingListFullData + offsetVectorID));
+                                  // if (i < 10) {
+                            //     // LOG(Helper::LogLevel::LL_Info, "Total ele count: "
+                            //     // "%lld , current first dimension: %f", listInfo->listEleCount, (float)*(p_postingListFullData + offsetVector));
+                            //     std::cout << "Total ele count: " <<  listInfo->listEleCount << "current first dimension: " << *reinterpret_cast<float*>(p_postingListFullData + offsetVector);
+                            //     if (i == 9) {
+                            //         p_index->GetOfs().close();
+                            //         exit(1);
+                            //     }
+                            // }(this->*m_parseEncoding)(p_index, listInfo, (ValueType*)(p_postingListFullData + offsetVector));
+                            if (!p_index->GetOfs().is_open()) {
+                                LOG(Helper::LogLevel::LL_Error, "File is not opened before.");
+                                // p_index->GetOfs().open(p_index->GetSaveFileName().c_str(), std::ofstream::out | std::ofstream::app | std::ofstream::binary);
+                                exit(-1);
+                            }
+                            p_index->GetOfs().write(p_postingListFullData + offsetVector, p_index->GetFeatureDim() * sizeof(float)); 
+                            
+                            if (p_index->GetOfs().bad()) {
+                                    LOG(Helper::LogLevel::LL_Error,
+                                    "Writing into cm file failed");
+                                    p_index->GetOfs().close();
+                                    exit(-1);
+                            }
+                            // if (i < 10) {
+                            //     // LOG(Helper::LogLevel::LL_Info, "Total ele count: "
+                            //     // "%lld , current first dimension: %f", listInfo->listEleCount, (float)*(p_postingListFullData + offsetVector));
+                            //     std::cout << "Total ele count: " <<  listInfo->listEleCount << "current first dimension: " << *reinterpret_cast<float*>(p_postingListFullData + offsetVector);
+                            //     if (i == 9) {
+                            //         p_index->GetOfs().close();
+                            //         exit(1);
+                            //     }
+                            // }
+                            // queryResults.AddPoint(vectorID, distance2leaf);
+                        }
+#endif // DEBUG
+                        // ofs.close();
                         ProcessPosting();
                     };
 #else // async read
@@ -260,7 +314,9 @@ namespace SPTAG
                     }
 #endif
 #else // sync read
+                    //
                     auto numRead = indexFile->ReadBinary(totalBytes, buffer, listInfo->listOffset);
+                    //
                     if (numRead != totalBytes) {
                         LOG(Helper::LogLevel::LL_Error, "File %s read bytes, expected: %zu, acutal: %llu.\n", m_extraFullGraphFile.c_str(), totalBytes, numRead);
                         throw std::runtime_error("File read mismatch");

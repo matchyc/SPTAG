@@ -16,7 +16,7 @@ namespace SPTAG {
             int totalToSubmit = 0, channel = 0;
 
             memset(myiocbs.data(), 0, num * sizeof(struct iocb));
-            for (int i = 0; i < num; i++) {
+            for (int i = 0; i < num; i++) { // register io task
                 AsyncReadRequest* readRequest = &(readRequests[i]);
 
                 channel = readRequest->m_status & 0xffff;
@@ -34,7 +34,7 @@ namespace SPTAG {
             }
             std::vector<struct io_event> events(totalToSubmit);
             int totalDone = 0, totalSubmitted = 0, totalQueued = 0;
-            while (totalDone < totalToSubmit) {
+            while (totalDone < totalToSubmit) { // loop until all tasks finished
                 if (totalSubmitted < totalToSubmit) {
                     for (int i = 0; i < handlers.size(); i++) {
                         if (submitted[i] < iocbs[i].size()) {
@@ -51,7 +51,7 @@ namespace SPTAG {
                     }
                 }
 
-                for (int i = totalQueued; i < totalDone; i++) {
+                for (int i = totalQueued; i < totalDone; i++) { // 
                     AsyncReadRequest* req = reinterpret_cast<AsyncReadRequest*>((events[i].data));
                     if (nullptr != req)
                     {
